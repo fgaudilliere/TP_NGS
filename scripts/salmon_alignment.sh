@@ -14,7 +14,7 @@ done
 # Bons résultats : > 80% de reads alignés
 # Ici: inserts trop petits, reads se chevauchent
 # Réalignement avec salmon: ne fonctionne pas -> seulement 40% de reads alignés
-# Correction : aligner avec des données single-end (pas le code ici)
+# Correction : aligner avec des données single-end
 
 # Alignement en single-end:
 

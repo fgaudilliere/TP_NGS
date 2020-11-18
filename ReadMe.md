@@ -7,21 +7,23 @@ output:
 
 This is the description of the code used in my NGS practicals in November 2020.
 
-## Data download
+## Data download (download_data.sh)
 
-To download the data used in these practicals, please use the following command:
+To download the data used in these practicals, we use the following command:
 ```
 wget -r --ftp-user=igfl-UE_NGS_2020 --ftp-password=UE_NGS_2020 ftp://sharegate-igfl.ens-lyon.fr/Projet_31_20_UE_NGS_2020/
 ```
+The line specifies the adress of the directory containing what we want, as well as the username and password we need to get there.
+
 The files are under the fastq.gz format, that is a compressed fastq format. fastq files contain read sequences as well as information on the quality of those reads.
 
 After downloading it, I moved the data to a new directory: it is now in a specific directory called data_tp_ngs that will contain all the data for these practicals (one directory per type of files).
 
-## Quality control
+## Quality control (quality_control.sh)
 
 ### Running fastqc
 
-To start, we run fastqc on our fastq.gz files: this command analyzes the contents of fastq files and returns a report on each file containing graphs summing up things like per base sequence quality, per tile sequence quality, per sequence quality scores, per base sequence content etc. 
+To start, we run fastqc on our fastq.gz files: this program analyzes the contents of fastq files and returns a report on each file containing graphs summing up things like per base sequence quality, per tile sequence quality, per sequence quality scores, per base sequence content etc. 
 
 #### Structure of the script
 
@@ -74,9 +76,9 @@ The outputs are stored in a specific directory called trimmomatic_ouputs, which 
 
 Now that our reads have been trimmed, we run fastqc on Trimmomatic's output to make sure that everything went as planned and that our new data is cleaner. We repeat the operation described in the fastqc section.
 
-## Data assembly
+## Data assembly (data_assembly.sh)
 
-After running the quality control script, we have cleaned data files which we can use for data assembly. 
+After running the quality control script, we have clean data files which we can use for data assembly. 
 
 This is done using a program called Trinity.
 
@@ -156,5 +158,58 @@ Basically, we select lines starting with '>' in the Trinity output file, cut the
 The .fasta.gene_trans_map file contains a table with correspondences between genes and isoforms. 
 
 
-## Data annotation
+## Reads alignment (salmon_alignment.sh)
 
+To annotate the data, we use a program called salmon. Salmon is divided in several sub-programs, and we use two of them: salmon index to build an index on which to map the reads, and salmon quant to align and quantify the reads. 
+
+### Salmon index
+
+The command takes the following parameters:
+
+- t: fasta file containing the assembled reads (Trinity output)
+- i: directory in which to create the output
+- p: number of cores to use in the calculation
+
+The command line looks like this:
+```
+salmon index -t $data/trinity_results/Trinity_RF.fasta -i $data/salmon_index -p 4
+```
+
+The output is stored in a file called salmon_index. 
+
+### Salmon alignment
+
+We then use the index we just created to align our reads (the paired reads corresponding to the outputs of Trimmomatic) with salmon quant. 
+
+#### Structure of the script
+
+Just like in previous steps (fastqc or Trimmomatic), we need to process several files one after the other, so we create a for loop going through each pair of files (forward reads and reverse reads) and applying salmon quant to that pair of files.
+
+#### salmon quant parameters
+
+The parameters for salmon quant are:
+
+-i: index to use (the salmon index we just built)
+- l: library format. We put in A (for Automatic) so that salmon will look at the files we enter and determine it itself. 
+- 1: forward reads.
+- 2: reverse reads.
+- validateMapping: option that is default in the newest versions of salmon, but here we need to indicate it. 
+- o: directory in which to put output files.
+
+The command line looks like this: 
+```
+salmon quant -i $data/salmon_index -l A -1  forward_paired_output.fq.gz -2 reverse_paired_output.fq.gz --validateMappings -o $data/salmon_alignment
+```
+
+#### salmon quant output
+
+Normally, when aligning reads, a result is considered good when > 80% of reads are aligned. However, here, we only reach 40% of aligned reads. This is likely due to a problem during sequencing: inserts (RNA fragments) were too small, and therefore the forward and reverse reads overlap. 
+
+#### Correcting the salmon quant output
+
+To correct this, we can run salmon quant a second time, but this time we do as if the reads were not paired but single. The parameters are almost all the same except for -1 and -2 which are replaced by -r, and we only give salmon quant one file at a time instead of two. 
+
+The command line looks like this:
+```
+salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validateMappings -o $data/salmon_alignment_single_end
+```
