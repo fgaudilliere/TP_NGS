@@ -99,7 +99,7 @@ You can keep a log of everything a program prints while it runs with a command o
 
 You can run a program in the background (so as to still be able to use the terminal while it's running) with the following command:
 ```
-& ./script.sh &
+./script.sh &
 ```
 You can see which processes are running in the background by typing:
 ```
@@ -114,7 +114,7 @@ If you want to kill a specific process using its PID number, do:
 kill <PID number of the process>
 ```
 
-The nohup command can be used to transfer messages relative to the execution of a program, which by default are displayed in the terminal, into a file created for the occasion. 
+The nohup command can be write to transfer messages relative to the execution of a program, which by default are only displayed in the terminal, into a file created for the occasion. 
 For example, typing: 
 ```
 nohup./script.sh
@@ -127,7 +127,7 @@ will create a nohup.out file which is a log of the script's execution. Be carefu
 
 The previous commands can be combined with:
 ```
-./script.sh > & nohup.log_file.txt &
+./script.sh > nohup.log_file.txt &
 ```
 
 ### Trinity parameters
