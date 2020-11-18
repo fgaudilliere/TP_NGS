@@ -1,6 +1,8 @@
-# Data annotation
-# Which reference? Which tools? Which criteria?
+data=/ifb/data/mydatalocal/data_tp_ngs
 
+
+
+TransDecoder.LongOrfs -t $data/trinity_results/Trinity_RF.fasta
 
 
 # Recover proteomic data from chosen reference species using Transdecoder

@@ -142,6 +142,19 @@ The command is structured as follows:
 Trinity --seqType fq --max_memory 14G --SS_lib_type RF --output $data/trinity_outputs/ --left list_of_paired_forward_files --right list_of_paired_reverse_files --CPU 4
 ```
 
-The output files are stored in a directory called trinity_outputs.
+### Output files
+
+The output files are stored in a directory called trinity_outputs. We have two files: a .fasta and a .fasta.gene_trans_map. 
+
+In the .fasta file, we have lines (starting with a '>') of the form TRINITY_DNX_cX_gX_iX, with TRINITY_DNX_cX identifying a cluster, TRINITY_DNX_cX_gX identifying a gene in the cluster and TRINITY_DNX_cX_gX_iX identifying an isoform of that gene. These lines are followed by another line with the sequence corresponding to the isoform labeled by the identifier line.  
+The identifier lines can be used to count the number of genes, for instance with a line like: 
+```
+grep ">" Trinity_RF.fasta |cut -f1,2,3,4 -d "_" |sort |uniq |less
+```
+Basically, we select lines starting with '>' in the Trinity output file, cut them at each "_" symbol and keep the 1st, 2nd, 3rd and 4th parts, which we then sort; finally we only keep one occurrence of a given character string and we show the final result (using less). This operation allows us to keep the TRINITY_DNX_cX_gX part of the identifier lines (corresponding to a gene) and count how many different genes we have. 
+
+The .fasta.gene_trans_map file contains a table with correspondences between genes and isoforms. 
+
 
 ## Data annotation
+
