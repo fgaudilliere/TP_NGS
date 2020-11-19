@@ -203,7 +203,7 @@ salmon quant -i $data/salmon_index -l A -1  forward_paired_output.fq.gz -2 rever
 
 #### salmon quant output
 
-Normally, when aligning reads, a result is considered good when > 80% of reads are aligned. However, here, we only reach 40% of aligned reads. This is likely due to a problem during sequencing: inserts (RNA fragments) were too small, and therefore the forward and reverse reads overlap. 
+Normally, when aligning reads, a result is considered good when > 80% of reads are aligned. However, here, we only reach around 40% of aligned reads. This is likely due to a problem during sequencing: inserts (RNA fragments) were too small, and therefore the forward and reverse reads overlap. 
 
 #### Correcting the salmon quant output
 
@@ -213,3 +213,5 @@ The command line looks like this:
 ```
 salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validateMappings -o $data/salmon_alignment_single_end
 ```
+
+This time, we get a mapping rate around 94%, which is much more satisfying. 
