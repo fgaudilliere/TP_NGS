@@ -9,11 +9,7 @@ This is the description of the code used in my NGS practicals in November 2020.
 
 ## Data download (download_data.sh)
 
-To download the data used in these practicals, we use the following command:
-```
-wget -r --ftp-user=igfl-UE_NGS_2020 --ftp-password=UE_NGS_2020 ftp://sharegate-igfl.ens-lyon.fr/Projet_31_20_UE_NGS_2020/
-```
-The line specifies the adress of the directory containing what we want, as well as the username and password we need to get there.
+To download the data used in these practicals, we use a command that specifies the adress of the directory containing what we want, as well as the username and password we need to get there.
 
 The files are under the fastq.gz format, that is a compressed fastq format. fastq files contain read sequences as well as information on the quality of those reads.
 
