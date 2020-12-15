@@ -214,4 +214,4 @@ The command line looks like this:
 salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validateMappings -o $data/salmon_alignment_single_end
 ```
 
-This time, we get a mapping rate around 94%, which is much more satisfying. 
+This time, we get around 94% of aligned reads, which is much more satisfying. 
