@@ -7,7 +7,7 @@ output:
 
 This is the description of the code used in my NGS practicals in November 2020.
 
-## Data download (download_data.sh)
+## 1 - Data download (download_data.sh)
 
 To download the data used in these practicals, we use a command that specifies the adress of the directory containing what we want, as well as the username and password we need to get there.
 
@@ -15,17 +15,17 @@ The files are under the fastq.gz format, that is a compressed fastq format. fast
 
 After downloading it, I moved the data to a new directory: it is now in a specific directory called data_tp_ngs that will contain all the data for these practicals (one directory per type of files).
 
-## Quality control (quality_control.sh)
+## 2 - Quality control (quality_control.sh)
 
-### Running fastqc
+### 2.1 - Running fastqc
 
 To start, we run fastqc on our fastq.gz files: this program analyzes the contents of fastq files and returns a report on each file containing graphs summing up things like per base sequence quality, per tile sequence quality, per sequence quality scores, per base sequence content etc. 
 
-#### Structure of the script
+#### 2.1.2 - Structure of the script
 
 We build a for loop that goes through each fastq.gz file and runs fastqc on that file. 
 
-#### fastqc parameters
+#### 2.1.3 - fastqc parameters
 
 The command to call fastqc is fairly simple and goes as follows:
 ```
@@ -35,21 +35,21 @@ fastqc -t 4 sequence_file_name.fastq.gz -o output_directory
 
 The -t corresponds to threads, i.e. the number of cores to be dedicated to the task. The -o corresponds to the output directory to store the results in. 
 
-#### Results
+#### 2.1.4 - Results
 
 The output files are stored in a file called fastqc_results.
 
 We can see in the outputs that we have per base sequence content anomalies at the beginning of the reads (on approximately 8-9 pairs) and that the end of reads often corresponds to the sequencing of Illumina adaptators. Therefore, the data is not clean, and we are going to need to trim it. 
 
-### Running Trimmomatic
+### 2.2 - Running Trimmomatic
 
 To trim the reads, we use Trimmomatic (NB: here we run it separately, but there is also an option in Trinity to run Trimmomatic).
 
-#### Structure of the script
+#### 2.2.1 - Structure of the script
 
 Like before, we build a for loop and for each iteration, we give Trimmomatic two paired files (forward and reverse reads corresponding to a given sample).
 
-#### Trimmomatic parameters
+#### 2.2.2 - Trimmomatic parameters
 
 - threads: number of cores to use.
 - phreds33: one of two options, either phreds33 or phreds64.
@@ -63,22 +63,22 @@ java -jar /softwares/Trimmomatic-0.39/trimmomatic-0.39.jar PE -threads 8 -phred3
 ```
 The unpaired outputs correspond to reads for which the corresponding paired reads were discarded in the process. 
 
-#### Trimmomatic outputs
+#### 2.2.3 - Trimmomatic outputs
 
 The outputs are stored in a specific directory called trimmomatic_ouputs, which can be found in the data directory. 
 
 
-### Running fastqc on Trimmomatic results
+### 2.3 - Running fastqc on Trimmomatic results
 
 Now that our reads have been trimmed, we run fastqc on Trimmomatic's output to make sure that everything went as planned and that our new data is cleaner. We repeat the operation described in the fastqc section.
 
-## Data assembly (data_assembly.sh)
+## 3 - Data assembly (data_assembly.sh)
 
 After running the quality control script, we have clean data files which we can use for data assembly. 
 
 This is done using a program called Trinity.
 
-### Structure of the script
+### 3.1 - Structure of the script
 
 We start by building two strings containing the names of 1) all the forward paired outputs from Trimmomatic, and 2) all the reverse paired outputs from Trimmomatic. 
 
@@ -86,7 +86,7 @@ We then feed these files to Trinity for data assembly.
 
 NB: this is what I would have done theoretically, but given that Trinity actually takes two days to run on the data used here, the teachers ran it ahead of the practicals and just sent us the results.
 
-### A few tips on running demanding scripts
+### 3.2 - A few tips on running demanding scripts
 
 You can keep a log of everything a program prints while it runs with a command of the following type: 
 ```
@@ -123,10 +123,10 @@ will create a nohup.out file which is a log of the script's execution. Be carefu
 
 The previous commands can be combined with:
 ```
-./script.sh > nohup.log_file.txt &
+nohup ./script.sh >& nohup.script_log_file.txt &
 ```
 
-### Trinity parameters
+### 3.3 - Trinity parameters
 
 - seqType: specifies the sequence format. Here we use fq (fastq) files. 
 - left and right (for paired reads): enter reads R1 in left and reads R2 in right.
@@ -140,7 +140,7 @@ The command is structured as follows:
 Trinity --seqType fq --max_memory 14G --SS_lib_type RF --output $data/trinity_outputs/ --left list_of_paired_forward_files --right list_of_paired_reverse_files --CPU 4
 ```
 
-### Output files
+### 3.4 - Output files
 
 The output files are stored in a directory called trinity_outputs. We have two files: a .fasta and a .fasta.gene_trans_map. 
 
@@ -154,11 +154,11 @@ Basically, we select lines starting with '>' in the Trinity output file, cut the
 The .fasta.gene_trans_map file contains a table with correspondences between genes and isoforms. 
 
 
-## Data annotation with Transdecoder and Blast (transdecoder.sh and blastn.sh)
+## 4 - Data annotation with Transdecoder and Blast (transdecoder.sh and blastn.sh)
 
 Next, we annotate the data using Transdecoder. Given that we do not have a reference genome, we use the human genome as a reference (because it is annotated in great detail, unlike other organisms that would be closer to the bat).
 
-### Transdecoder
+### 4.1 - Transdecoder
 
 We look for long ORFs in our reads using Transdecoder.LongOrfs on the Trinity output. We then predict coding regions using Transdecoder.Predict. 
 
@@ -170,7 +170,9 @@ TransDecoder.LongOrfs -t $data/trinity_results/Trinity_RF.fasta --gene_trans_map
 TransDecoder.Predict -t $data/trinity_results/Trinity_RF.fasta -O $data/transdecoder_results/ --single_best_only
 ```
 
-### Getting the human reference
+### 4.2 - Blastn
+
+#### 4.2.1 - Getting the human reference
 
 We use the wget command, just like we did to download the original data. It looks like this:
 
@@ -183,11 +185,11 @@ Since the file is compressed, we need to unzip it before using it with:
 gunzip file_name
 ```
 
-### Building the database
+#### 4.2.2 - Building the database
 
 We then use this decompressed file to build a reference database with makeblastdb.
 
-#### makeblastdb parameters
+makeblastdb arameters:
 
 - dbtype: molecule type of target db, either "nucl" or "prot" (here we use "nucl")
 - in: input file name
@@ -199,11 +201,11 @@ The command looks like this:
 ```
 makeblastdb -dbtype nucl -in Homo_sapiens.GRCh38.cds.fa -input_type fasta -out ouput_file -parse_seqids
 ```
-### Blasting
+#### 4.2.3 - Blasting
 
 We then use the database we created to actually do the blast. 
 
-#### Bastn parameters
+Bastn parameters:
 
 - db: blast database file name
 - query: input file name
@@ -218,11 +220,11 @@ The command line looks like this:
 blastn -db makeblastdb_output -query Trinity_RF.fasta.transdecoder.cds -evalue 1e-4 -outfmt 6 -out blast_alignment_output_file -max_target_seqs 1
 ```
 
-## Reads alignment (salmon_alignment.sh)
+## 5 - Reads alignment (salmon_alignment.sh)
 
 To annotate the data, we use a program called salmon. Salmon is divided in several sub-programs, and we use two of them: salmon index to build an index on which to map the reads, and salmon quant to align and quantify the reads. 
 
-### Salmon index
+### 5.1 - Salmon index
 
 The command takes the following parameters:
 
@@ -237,15 +239,15 @@ salmon index -t $data/trinity_results/Trinity_RF.fasta -i $data/salmon_index -p 
 
 The output is stored in a file called salmon_index. 
 
-### Salmon alignment
+### 5.2 - Salmon alignment
 
 We then use the index we just created to align our reads (the paired reads corresponding to the outputs of Trimmomatic) with salmon quant. 
 
-#### Structure of the script
+#### 5.2.1 - Structure of the script
 
 Just like in previous steps (fastqc or Trimmomatic), we need to process several files one after the other, so we create a for loop going through each pair of files (forward reads and reverse reads) and applying salmon quant to that pair of files.
 
-#### salmon quant parameters
+#### 5.2.2 - salmon quant parameters
 
 The parameters for salmon quant are:
 
@@ -261,11 +263,11 @@ The command line looks like this:
 salmon quant -i $data/salmon_index -l A -1  forward_paired_output.fq.gz -2 reverse_paired_output.fq.gz --validateMappings -o $data/salmon_alignment
 ```
 
-#### salmon quant output
+#### 5.2.3 - salmon quant output
 
 Normally, when aligning reads, a result is considered good when > 80% of reads are aligned. However, here, we only reach around 40% of aligned reads. This is likely due to a problem during sequencing: inserts (RNA fragments) were too small, and therefore the forward and reverse reads overlap. 
 
-#### Correcting the salmon quant output
+#### 5.2.4 - Correcting the salmon quant output
 
 To correct this, we can run salmon quant a second time, but this time we do as if the reads were not paired but single. The parameters are almost all the same except for -1 and -2 which are replaced by -r, and we only give salmon quant one file at a time instead of two. 
 
@@ -277,17 +279,17 @@ salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validat
 This time, we get around 94% of aligned reads, which is much more satisfying. 
 
 
-### Output file
+### 5.3 - Output file
 
 - Effective length: the entire transcript length is not necessarily mappable (repeated regions, repetition of one nucleotide...), therefore some parts of it may never be aligned.
 - TPM: transcript per million (normalization)
 - NumReads: number of reads aligned on the transcript. The value is not necessarily a round number because salmon is a subtle alignment tool and not an exact tool: it can take into account the fact that sometimes, it cannot distinguish between isoforms of paralogs and can attribute an ambiguous read partially to different transcripts. The fraction attributed to one transcript or the other is proportional to the expression of each transcript (an ambiguous read is more likely to correspond to a highly expressed transcript than to a low expressed one).
 
-### Adapting the output to DESeq2
+### 5.4 - Adapting the output to DESeq2
 
 We are going to use the NumReads value, pooled by gene, in DESeq2. To create a table containing that information, we use the tximport library in R.
 
-## DESeq2
+## 6 - DESeq2
 
 To determine whether genes are differentially expressed between the two conditions (IFN+ and IFN-), we use a R package called DESeq2. Basically, it performs classic statistical tests to determine if individual genes are expressed at different levels in the two conditions. It makes two adjustments compared to a classical ANOVA comparison: 
 1. the dispersion of individual gene expression counts in adjusted. For each gene in each condition, we have very few replicates (3 in our case). Therefore, it is impossible to know, on only one gene, whether the dispersion we observe is representative of real conditions or not. To have a better estimation of the dispersion, DESeq2 therefore adjusts a curve of the dispersion as a function of the gene count number and corrects the measured dispersion for each gene to better fit to that curve. This way, it takes into account the individual dispersion of all genes to correct individual dispersion values that are too far from what would be expected at a given gene count number. However, for individual genes with a dispersion much higher than expected, DESeq2 doesn't correct the dispersion value so as to not create false positives (lowering the dispersion will mean that the gene is considered to be expressed in a more stable way than it actually is, and, if we then spot a difference between conditions, we will consider it significant when we wouldn't have if we had kept the original dispersion). 

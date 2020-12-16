@@ -9,18 +9,134 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# First analysis
+
 ```{r}
 library("tximport")
 ```
 
 ```{r}
-data = "ifb/data/mydatalocal/data_tp_ngs"
+data = "/ifb/data/mydatalocal/data_tp_ngs"
+file_names = c()
+for (i in c(1,2,3,4,5,6)) {
+  file_names = c(file_names,paste0(data,"/","salmon_alignment_single_end",i,"_forward","/","quant.sf"))
+  file_names = c(file_names,paste0(data,"/","salmon_alignment_single_end",i,"_reverse","/","quant.sf"))
+}
 ```
 
 
 ```{r}
-files = 
-tx2gene = 
-tximport(type = "salmon")
+names(file_names) <- c("Lib1_forward","Lib1_reverse","Lib2_forward","Lib2_reverse","Lib3_forward","Lib3_reverse","Lib4_forward","Lib4_reverse","Lib5_forward","Lib5_reverse","Lib6_forward","Lib6_reverse")
+trinity <- read.table("/ifb/data/mydatalocal/data_tp_ngs/trinity_results/Trinity_RF.fasta.gene_trans_map")
+names(trinity) <- c("GENEID","TXNAME")
+trinity1 <- trinity[,c(2,1)]
 ```
 
+
+```{r}
+tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity1)
+```
+
+```{r}
+library("DESeq2")
+```
+
+```{r}
+samp.name <- names(file_names)
+samp.type <- c("CTL","CTL","CTL","CTL","CTL","CTL","INF","INF","INF","INF","INF","INF")
+samples <- data.frame(run=samp.name,condition=samp.type)
+```
+
+```{r}
+ddsTxi <- DESeqDataSetFromTximport(tximport_file,
+                                   colData = samples,
+                                   design = ~ condition)
+```
+
+
+```{r}
+dds <- DESeq(ddsTxi)
+res <- results(dds)
+res
+```
+
+```{r}
+table(res$padj < 0.05)
+table(res$padj < 0.01)
+```
+
+
+```{r}
+plotMA(res, ylim=c(-2,2))
+```
+
+```{r}
+vsd <- vst(dds, blind=FALSE)
+```
+
+```{r}
+plotPCA(vsd, intgroup=c("condition"))
+plotPCA(vsd, intgroup=c("condition", "run"))
+```
+
+
+# Re-analysis without Library 3
+
+
+```{r}
+data = "/ifb/data/mydatalocal/data_tp_ngs"
+file_names2 = c()
+for (i in c(1,2,4,5,6)) {
+  file_names2 = c(file_names2,paste0(data,"/","salmon_alignment_single_end",i,"_forward","/","quant.sf"))
+  file_names2 = c(file_names2,paste0(data,"/","salmon_alignment_single_end",i,"_reverse","/","quant.sf"))
+}
+```
+
+
+```{r}
+names(file_names2) <- c("Lib1_forward","Lib1_reverse","Lib2_forward","Lib2_reverse","Lib4_forward","Lib4_reverse","Lib5_forward","Lib5_reverse","Lib6_forward","Lib6_reverse")
+
+```
+
+```{r}
+tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity1)
+```
+
+```{r}
+samp.name2 <- names(file_names2)
+samp.type2 <- c("CTL","CTL","CTL","CTL","INF","INF","INF","INF","INF","INF")
+samples2 <- data.frame(run=samp.name2,condition=samp.type2)
+```
+
+```{r}
+ddsTxi2 <- DESeqDataSetFromTximport(tximport_file2,
+                                   colData = samples2,
+                                   design = ~ condition)
+```
+
+
+
+```{r}
+dds2 <- DESeq(ddsTxi2)
+res2 <- results(dds2)
+res2
+```
+
+```{r}
+table(res2$padj < 0.05)
+table(res2$padj < 0.01)
+```
+
+
+```{r}
+plotMA(res2, ylim=c(-2,2))
+```
+
+```{r}
+vsd2 <- vst(dds2, blind=FALSE)
+```
+
+```{r}
+plotPCA(vsd2, intgroup=c("condition"))
+plotPCA(vsd2, intgroup=c("condition", "run"))
+```
