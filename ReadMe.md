@@ -154,6 +154,70 @@ Basically, we select lines starting with '>' in the Trinity output file, cut the
 The .fasta.gene_trans_map file contains a table with correspondences between genes and isoforms. 
 
 
+## Data annotation with Transdecoder and Blast (transdecoder.sh and blastn.sh)
+
+Next, we annotate the data using Transdecoder. Given that we do not have a reference genome, we use the human genome as a reference (because it is annotated in great detail, unlike other organisms that would be closer to the bat).
+
+### Transdecoder
+
+We look for long ORFs in our reads using Transdecoder.LongOrfs on the Trinity output. We then predict coding regions using Transdecoder.Predict. 
+
+The command lines look like this:
+
+```
+TransDecoder.LongOrfs -t $data/trinity_results/Trinity_RF.fasta --gene_trans_map $data/trinity_results/Trinity_RF.fasta.gene_trans_map --output_dir $data/transdecoder_results/ -m 100 -S
+
+TransDecoder.Predict -t $data/trinity_results/Trinity_RF.fasta -O $data/transdecoder_results/ --single_best_only
+```
+
+### Getting the human reference
+
+We use the wget command, just like we did to download the original data. It looks like this:
+
+```
+wget -O $storage_path/Homo_sapiens.GRCh38.cds.fa.gz ftp://ftp.ensembl.org/pub/release-101/fasta/homo_sapiens/cds/Homo_sapiens.GRCh38.cds.all.fa.gz
+```
+
+Since the file is compressed, we need to unzip it before using it with: 
+```
+gunzip file_name
+```
+
+### Building the database
+
+We then use this decompressed file to build a reference database with makeblastdb.
+
+#### makeblastdb parameters
+
+- dbtype: molecule type of target db, either "nucl" or "prot" (here we use "nucl")
+- in: input file name
+- input_type: type of data in the input file, either asn1_bin', `asn1_txt', `blastdb', or `fasta'
+- out: output name
+- parse_seqids: Option to parse seqid for FASTA input if set, for all other input types seqids are parsed automatically
+
+The command looks like this:
+```
+makeblastdb -dbtype nucl -in Homo_sapiens.GRCh38.cds.fa -input_type fasta -out ouput_file -parse_seqids
+```
+### Blasting
+
+We then use the database we created to actually do the blast. 
+
+#### Bastn parameters
+
+- db: blast database file name
+- query: input file name
+- evalue: expectation value E for saving hits
+- outfmt: alignment view options. Here we use 6: Tabular
+- out: output file name
+- max_target_seqs: keep only one hit per contig (one annotation per gene)
+
+The command line looks like this:
+
+```
+blastn -db makeblastdb_output -query Trinity_RF.fasta.transdecoder.cds -evalue 1e-4 -outfmt 6 -out blast_alignment_output_file -max_target_seqs 1
+```
+
 ## Reads alignment (salmon_alignment.sh)
 
 To annotate the data, we use a program called salmon. Salmon is divided in several sub-programs, and we use two of them: salmon index to build an index on which to map the reads, and salmon quant to align and quantify the reads. 
@@ -205,10 +269,26 @@ Normally, when aligning reads, a result is considered good when > 80% of reads a
 
 To correct this, we can run salmon quant a second time, but this time we do as if the reads were not paired but single. The parameters are almost all the same except for -1 and -2 which are replaced by -r, and we only give salmon quant one file at a time instead of two. 
 
-The command line looks like this:
+The command line looks something like this:
 ```
 salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validateMappings -o $data/salmon_alignment_single_end
 ```
 
 This time, we get around 94% of aligned reads, which is much more satisfying. 
 
+
+### Output file
+
+- Effective length: the entire transcript length is not necessarily mappable (repeated regions, repetition of one nucleotide...), therefore some parts of it may never be aligned.
+- TPM: transcript per million (normalization)
+- NumReads: number of reads aligned on the transcript. The value is not necessarily a round number because salmon is a subtle alignment tool and not an exact tool: it can take into account the fact that sometimes, it cannot distinguish between isoforms of paralogs and can attribute an ambiguous read partially to different transcripts. The fraction attributed to one transcript or the other is proportional to the expression of each transcript (an ambiguous read is more likely to correspond to a highly expressed transcript than to a low expressed one).
+
+### Adapting the output to DESeq2
+
+We are going to use the NumReads value, pooled by gene, in DESeq2. To create a table containing that information, we use the tximport library in R.
+
+## DESeq2
+
+To determine whether genes are differentially expressed between the two conditions (IFN+ and IFN-), we use a R package called DESeq2. Basically, it performs classic statistical tests to determine if individual genes are expressed at different levels in the two conditions. It makes two adjustments compared to a classical ANOVA comparison: 
+1. the dispersion of individual gene expression counts in adjusted. For each gene in each condition, we have very few replicates (3 in our case). Therefore, it is impossible to know, on only one gene, whether the dispersion we observe is representative of real conditions or not. To have a better estimation of the dispersion, DESeq2 therefore adjusts a curve of the dispersion as a function of the gene count number and corrects the measured dispersion for each gene to better fit to that curve. This way, it takes into account the individual dispersion of all genes to correct individual dispersion values that are too far from what would be expected at a given gene count number. However, for individual genes with a dispersion much higher than expected, DESeq2 doesn't correct the dispersion value so as to not create false positives (lowering the dispersion will mean that the gene is considered to be expressed in a more stable way than it actually is, and, if we then spot a difference between conditions, we will consider it significant when we wouldn't have if we had kept the original dispersion). 
+2. Since we compute many independent differential expression tests (one for each gene), we need to adjust the p-value: it is considered uniformly distributed between 0 and 1, so if for instance we compute 10000 tests, we expect 500 false positives with a p-value < 0.05 when the genes aren't actually differentially expressed between our two conditions. DESeq2 therefore adjusts the p-value to take these expected false positives into account. 

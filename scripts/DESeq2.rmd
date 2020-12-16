@@ -1,0 +1,26 @@
+---
+title: "DESeq2 Analysis"
+author: "fgaudilliere"
+date: "16/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library("tximport")
+```
+
+```{r}
+data = "ifb/data/mydatalocal/data_tp_ngs"
+```
+
+
+```{r}
+files = 
+tx2gene = 
+tximport(type = "salmon")
+```
+
