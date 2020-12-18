@@ -140,3 +140,134 @@ vsd2 <- vst(dds2, blind=FALSE)
 plotPCA(vsd2, intgroup=c("condition"))
 plotPCA(vsd2, intgroup=c("condition", "run"))
 ```
+
+
+
+
+
+# Lecture de la sortie de Blast
+
+```{r}
+blast <- read.table(paste0(data,"/blast_alignment/blast_alignment_output"))
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(data.table)
+library(ggplot2)
+library(biomaRt)
+```
+
+
+
+Faire la correspondance entre les numéros de gènes qu'on a dans le blast (numéros de gènes Trinity) et les noms réels (en utilisant comme intermédiaire les numéros de gènes ensembl): on produit une table bilan. 
+
+```{r}
+# match gene/transcript names
+ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+tx2geneHomo = biomaRt::getBM(attributes=c('ensembl_transcript_id', 
+                                      'ensembl_gene_id', 'external_gene_name'),mart=ensembl)
+
+# add gene name to the blast outputs. we can probably do much better!!
+blastHomo<-data.table(blast)
+blastHomo<-blastHomo[, c("trid", "version") := tstrsplit(V2, ".", fixed=TRUE)][]
+blastHomo<-blastHomo[, c("gene", "alttr") := tstrsplit(V1, "_i", fixed=TRUE)][]
+blastHomo1 <- blastHomo%>% group_by(gene)%>% slice_max(order_by = V12, n = 1, with_ties = TRUE)
+blastHomoName<-merge(tx2geneHomo,blastHomo1,by.x="ensembl_transcript_id",by.y="trid")
+blastHomoNameUniq<-unique(blastHomoName[,c("ensembl_gene_id","external_gene_name","gene")])
+# associate our DE results with gene names from human
+resUsName=merge(as.data.frame(res2),blastHomoNameUniq,by.x=0,by.y="gene")
+```
+
+```{r}
+UpReg <- filter(resUsName, padj<0.05 & resUsName$log2FoldChange>0)
+DownReg <- filter(resUsName, padj<0.05 & resUsName$log2FoldChange<0)
+AllReg <- filter(resUsName, padj<0.05)
+```
+
+Comparaison avec un autre papier : 
+
+
+```{r}
+resBatHolzer<-read.csv("https://www.rna.uni-jena.de/supplements/mda/data/deseq2/RNA/Mock_6h_RNA_vs_IFN_6h_RNA/deseq2_Mock_6h_RNA_IFN_6h_RNA_full.csv")
+```
+
+
+```{r}
+names(resUsName)[9] <- 'gene_name'
+CommonGenesUsHolze <- merge(resUsName,resBatHolzer,by="gene_name") 
+```
+
+Préparation de listes pour Gorilla:
+
+```{r}
+all_genes_list <- resUsName$gene_name
+up_reg_list <- UpReg$gene_name
+down_reg_list <- DownReg$gene_name
+all_reg <- AllReg$gene
+
+write.csv(as.data.frame(unique(all_genes_list)), 
+          file="/ifb/data/mydatalocal/data_tp_ngs/gorilla_lists/names_all.csv",quote=FALSE,row.names = FALSE)
+
+write.csv(as.data.frame(unique(up_reg_list)), 
+          file="/ifb/data/mydatalocal/data_tp_ngs/gorilla_lists/names_up.csv",quote=FALSE,row.names = FALSE)
+
+write.csv(as.data.frame(unique(down_reg_list)), 
+          file="/ifb/data/mydatalocal/data_tp_ngs/gorilla_lists/names_down.csv",quote=FALSE,row.names = FALSE)
+
+write.csv(as.data.frame(unique(all_reg)), 
+          file="/ifb/data/mydatalocal/data_tp_ngs/gorilla_lists/names_allreg.csv",quote=FALSE,row.names = FALSE)
+```
+
+
+
+
+Heatmap: 
+
+```{r}
+select <- na.omit(resUsName$Row.names[resUsName$padj<0.05 & resUsName$log2FoldChange>0])
+select <-select[1:10]
+row.names(samples2)=samples2$run
+annot_corresp <- data.frame(resUsName$Row.names,resUsName$gene_name)
+colnames(annot_corresp) <- c("nameTrinity","genename")
+annot_corresp1 <- filter(annot_corresp, annot_corresp$nameTrinity %in% select)
+
+pheatmap(assay(vsd2)[select,], cluster_rows=TRUE, show_rownames=TRUE,show_colnames=FALSE,
+         cluster_cols=FALSE, annotation_col=samples2, annotation_row = annot_corresp1)
+```
+
+
+```{r}
+resUsNameVsd <- merge(resUsName,assay(vsd2),by.x="Row.names",by.y=0)
+row.names(resUsNameVsd) <- resUsNameVsd$Row.names
+cibles <- c("ACTG1","ADAMTSL4")
+pheatmap(resUsNameVsd[resUsNameVsd$gene_name%in%cibles,10:15], cluster_rows=TRUE, show_rownames=TRUE,show_colnames=FALSE,
+         cluster_cols=FALSE, annotation_col=samples2)
+```
+
+
+Plus de gènes en commun entre eux et nous qu'attendu ? 
+
+```{r}
+chisq.test(table(us=CommonGenesUsHolze$padj.x<0.05,them=CommonGenesUsHolze$padj.y < 0.05))
+```
+
+```{r}
+CommonGenesUsHolze$ourTest="nonreg"
+CommonGenesUsHolze$ourTest[CommonGenesUsHolze$padj.x<0.05&CommonGenesUsHolze$log2FoldChange.x>0]="Up"
+CommonGenesUsHolze$ourTest[CommonGenesUsHolze$padj.x<0.05&CommonGenesUsHolze$log2FoldChange.x<0]="Down"
+```
+
+```{r}
+CommonGenesUsHolze$theirTest="nonreg"
+CommonGenesUsHolze$theirTest[CommonGenesUsHolze$padj.y<0.05&CommonGenesUsHolze$log2FoldChange.y>0]="Up"
+CommonGenesUsHolze$theirTest[CommonGenesUsHolze$padj.y<0.05&CommonGenesUsHolze$log2FoldChange.y<0]="Down"
+```
+
+```{r}
+chisq.test(table(us=CommonGenesUsHolze$ourTest,them=CommonGenesUsHolze$theirTest))
+```
+
+
