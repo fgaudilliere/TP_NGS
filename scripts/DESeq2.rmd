@@ -41,11 +41,16 @@ tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity
 library("DESeq2")
 ```
 
+Preparing the import by generating a table indicating, for each library, what the condition is (CTL or INF):
+
 ```{r}
 samp.name <- names(file_names)
 samp.type <- c("CTL","CTL","CTL","CTL","CTL","CTL","INF","INF","INF","INF","INF","INF")
 samples <- data.frame(run=samp.name,condition=samp.type)
 ```
+
+
+Importing the data from the tximport file into a file adapted to DESeq2:
 
 ```{r}
 ddsTxi <- DESeqDataSetFromTximport(tximport_file,
@@ -53,6 +58,8 @@ ddsTxi <- DESeqDataSetFromTximport(tximport_file,
                                    design = ~ condition)
 ```
 
+
+Running DESeq2: 
 
 ```{r}
 dds <- DESeq(ddsTxi)
@@ -70,10 +77,12 @@ table(res$padj < 0.01)
 plotMA(res, ylim=c(-2,2))
 ```
 
+Adapting data format for PCA:
 ```{r}
 vsd <- vst(dds, blind=FALSE)
 ```
 
+Plotting the PCA:
 ```{r}
 plotPCA(vsd, intgroup=c("condition"))
 plotPCA(vsd, intgroup=c("condition", "run"))

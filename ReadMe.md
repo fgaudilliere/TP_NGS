@@ -5,15 +5,30 @@ output:
 ---
 # NGS Practicals
 
-This is the description of the code used in my NGS practicals in November 2020.
+This is the description of the workflow and code used in my NGS practicals in November 2020.
+
+## Introduction
+
+This practical aimed at studying the interferon response in the bat species Myotis velifer. 
+
+Bats have been observed to be frequently infected by various viruses, but seem to be asymptotic in most cases. This raises the question of how bats have adapted to this longterm association with viruses, and a possible hypothesis is that they have evolved a balance between the intensity of the immune response (which has to be strong enough to ensure that the bat's organism is not affected too much by the consequences of a viral infection) and viral tolerance (to avoid living in a state of permanent inflammatory response).
+
+One important aspect of the immune response upon infection by a virus is the interferon response: when viral particles are detected by immune cells, they produce particles called interferons, which in turn activate specific genes called Interferon Stimulated Genes (ISG) that target various stages in the viral replication cycle. 
+
+This practical aims at studying ISGs in the bat Myotis velifer: to do this, we will analyze RNA-seq data obtained by sequencing the transcriptome of fibroblasts incubated either with (IFN+) or without (IFN-) interferons, to try and determine what genes are upregulated or downregulated in the IFN+ condition. We will then compare the regulated genes to known ISGs of other mammal species.
+
+The following image displays an overview of the workflow:
+
+![Workflow](images/Workflow.png)
 
 ## 1 - Data download (download_data.sh)
 
-To download the data used in these practicals, we use a command that specifies the adress of the directory containing what we want, as well as the username and password we need to get there.
+To download the data used in these practicals, we use a command that specifies the address of the directory containing what we want, as well as the user name and password we need to get there.
 
 The files are under the fastq.gz format, that is a compressed fastq format. fastq files contain read sequences as well as information on the quality of those reads.
 
 After downloading it, I moved the data to a new directory: it is now in a specific directory called data_tp_ngs that will contain all the data for these practicals (one directory per type of files).
+
 
 ## 2 - Quality control (quality_control.sh)
 
@@ -37,9 +52,17 @@ The -t corresponds to threads, i.e. the number of cores to be dedicated to the t
 
 #### 2.1.4 - Results
 
-The output files are stored in a file called fastqc_results.
+The output files are stored in a file called fastqc_results. 
 
-We can see in the outputs that we have per base sequence content anomalies at the beginning of the reads (on approximately 8-9 pairs) and that the end of reads often corresponds to the sequencing of Illumina adaptators. Therefore, the data is not clean, and we are going to need to trim it. 
+For instance, here is the per-base sequence quality plot for the first library: 
+
+![Per-base sequence quality](images/per_base_quality.png)
+
+And here is an overview of the quality of each library: 
+
+![Overall sequence quality](images/fastqc_summary.png)
+
+We can see in the outputs that we have per base sequence content anomalies at the beginning of the reads (on approximately 8-9 pairs) and that the quality of the sequencing decreases towards the end of reads (as is expected with an Illumina sequencing). Furthermore, the end of reads often corresponds to the sequencing of Illumina adaptors. Therefore, the data is not clean, and we are going to need to trim it to remove the Illumina adaptator sequences and the regions of poor quality. 
 
 ### 2.2 - Running Trimmomatic
 
@@ -47,7 +70,7 @@ To trim the reads, we use Trimmomatic (NB: here we run it separately, but there 
 
 #### 2.2.1 - Structure of the script
 
-Like before, we build a for loop and for each iteration, we give Trimmomatic two paired files (forward and reverse reads corresponding to a given sample).
+Like before, we build a for loop and for each iteration, and we give Trimmomatic two paired files (forward and reverse reads corresponding to a given sample).
 
 #### 2.2.2 - Trimmomatic parameters
 
@@ -63,14 +86,16 @@ java -jar /softwares/Trimmomatic-0.39/trimmomatic-0.39.jar PE -threads 8 -phred3
 ```
 The unpaired outputs correspond to reads for which the corresponding paired reads were discarded in the process. 
 
-#### 2.2.3 - Trimmomatic outputs
-
-The outputs are stored in a specific directory called trimmomatic_ouputs, which can be found in the data directory. 
-
 
 ### 2.3 - Running fastqc on Trimmomatic results
 
 Now that our reads have been trimmed, we run fastqc on Trimmomatic's output to make sure that everything went as planned and that our new data is cleaner. We repeat the operation described in the fastqc section.
+
+Here is an overview of the data quality after trimming: 
+
+![Overall sequence quality after trimming](images/fastqc_post_trimmomatic_summary.png)
+
+We can see a clear improvement in the quality of reads (the only things flagged by fastqc are the sequence duplication levels, which is normal in the context of RNA-sequencing, and the sequence length distribution, which is also normal since we did not necessarily trim all the reads by the same length).
 
 ## 3 - Data assembly (data_assembly.sh)
 
@@ -86,47 +111,8 @@ We then feed these files to Trinity for data assembly.
 
 NB: this is what I would have done theoretically, but given that Trinity actually takes two days to run on the data used here, the teachers ran it ahead of the practicals and just sent us the results.
 
-### 3.2 - A few tips on running demanding scripts
 
-You can keep a log of everything a program prints while it runs with a command of the following type: 
-```
-./script.sh > log_file.txt
-```
-
-You can run a program in the background (so as to still be able to use the terminal while it's running) with the following command:
-```
-./script.sh &
-```
-You can see which processes are running in the background by typing:
-```
-ps
-```
-For more details (such as how many cores are busy), you can use: 
-```
-htop
-```
-If you want to kill a specific process using its PID number, do:
-```
-kill <PID number of the process>
-```
-
-The nohup command can be write to transfer messages relative to the execution of a program, which by default are only displayed in the terminal, into a file created for the occasion. 
-For example, typing: 
-```
-nohup./script.sh
-```
-will create a nohup.out file which is a log of the script's execution. Be careful though, if you run several scripts with nohup without specifying a specific file to write the log in, all logs will be written in the same nohup.out file one after the other. To specify a file for a given script, you can do: 
-```
-./script.sh > nohup.log_file.txt
-```
-
-
-The previous commands can be combined with:
-```
-nohup ./script.sh >& nohup.script_log_file.txt &
-```
-
-### 3.3 - Trinity parameters
+### 3.2 - Trinity parameters
 
 - seqType: specifies the sequence format. Here we use fq (fastq) files. 
 - left and right (for paired reads): enter reads R1 in left and reads R2 in right.
@@ -140,7 +126,7 @@ The command is structured as follows:
 Trinity --seqType fq --max_memory 14G --SS_lib_type RF --output $data/trinity_outputs/ --left list_of_paired_forward_files --right list_of_paired_reverse_files --CPU 4
 ```
 
-### 3.4 - Output files
+### 3.3 - Output files
 
 The output files are stored in a directory called trinity_outputs. We have two files: a .fasta and a .fasta.gene_trans_map. 
 
@@ -158,7 +144,7 @@ The .fasta.gene_trans_map file contains a table with correspondences between gen
 
 Next, we annotate the data using Transdecoder. Given that we do not have a reference genome, we use the human genome as a reference (because it is annotated in great detail, unlike other organisms that would be closer to the bat).
 
-### 4.1 - Transdecoder
+### 4.1 - Transdecoder (transdecoder.sh)
 
 We look for long ORFs in our reads using Transdecoder.LongOrfs on the Trinity output. We then predict coding regions using Transdecoder.Predict. 
 
@@ -170,7 +156,7 @@ TransDecoder.LongOrfs -t $data/trinity_results/Trinity_RF.fasta --gene_trans_map
 TransDecoder.Predict -t $data/trinity_results/Trinity_RF.fasta -O $data/transdecoder_results/ --single_best_only
 ```
 
-### 4.2 - Blastn
+### 4.2 - Blastn (blastn.sh)
 
 #### 4.2.1 - Getting the human reference
 
@@ -209,7 +195,7 @@ Bastn parameters:
 
 - db: blast database file name
 - query: input file name
-- evalue: expectation value E for saving hits
+- evalue: expectation value E (which quantifies the quality of a hit: the smaller, the better) below which we save a hit
 - outfmt: alignment view options. Here we use 6: Tabular
 - out: output file name
 - max_target_seqs: keep only one hit per contig (one annotation per gene)
@@ -220,9 +206,16 @@ The command line looks like this:
 blastn -db makeblastdb_output -query Trinity_RF.fasta.transdecoder.cds -evalue 1e-4 -outfmt 6 -out blast_alignment_output_file -max_target_seqs 1
 ```
 
-## 5 - Reads alignment (salmon_alignment.sh)
+#### 4.2.4 - Output
 
-To annotate the data, we use a program called salmon. Salmon is divided in several sub-programs, and we use two of them: salmon index to build an index on which to map the reads, and salmon quant to align and quantify the reads. 
+The blastn output is a table which indicates, for each read, the human gene on which it has been aligned, as well as various elements of information about the hit (length, number of mismatches and gaps, quality of the hit...). 
+
+![blastn output](images/blastn_output.png)
+
+## 5 - Reads quantification (salmon_alignment.sh)
+
+
+To annotate and quantify the reads, we use a program called salmon. Salmon is divided in several sub-programs, and we use two of them: salmon index to build an index on which to map the reads, and salmon quant to align and quantify the reads. 
 
 ### 5.1 - Salmon index
 
@@ -239,7 +232,7 @@ salmon index -t $data/trinity_results/Trinity_RF.fasta -i $data/salmon_index -p 
 
 The output is stored in a file called salmon_index. 
 
-### 5.2 - Salmon alignment
+### 5.2 - Salmon quantification
 
 We then use the index we just created to align our reads (the paired reads corresponding to the outputs of Trimmomatic) with salmon quant. 
 
@@ -279,18 +272,108 @@ salmon quant -i $data/salmon_index -l A -r forward_paired_output.fq.gz --validat
 This time, we get around 94% of aligned reads, which is much more satisfying. 
 
 
+NB: When re-running salmon for technical reasons, I quantified reads in single-end, but the others did it in paired-end, and the results discussed below are based on the paired-end results. 
+
 ### 5.3 - Output file
+
+The quantification is done for each isoform separately (and not by gene; more on this in the next section).
 
 - Effective length: the entire transcript length is not necessarily mappable (repeated regions, repetition of one nucleotide...), therefore some parts of it may never be aligned.
 - TPM: transcript per million (normalization)
 - NumReads: number of reads aligned on the transcript. The value is not necessarily a round number because salmon is a subtle alignment tool and not an exact tool: it can take into account the fact that sometimes, it cannot distinguish between isoforms of paralogs and can attribute an ambiguous read partially to different transcripts. The fraction attributed to one transcript or the other is proportional to the expression of each transcript (an ambiguous read is more likely to correspond to a highly expressed transcript than to a low expressed one).
 
+![salmon ouput](images/salmon_quant_output.png)
+
 ### 5.4 - Adapting the output to DESeq2
 
-We are going to use the NumReads value, pooled by gene, in DESeq2. To create a table containing that information, we use the tximport library in R.
+We are going to use the NumReads value, pooled by gene, in DESeq2. To create a table containing that information, we use the tximport library in R with a command structured like this:
 
-## 6 - DESeq2
+```{r}
+tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity1)
+```
 
-To determine whether genes are differentially expressed between the two conditions (IFN+ and IFN-), we use a R package called DESeq2. Basically, it performs classic statistical tests to determine if individual genes are expressed at different levels in the two conditions. It makes two adjustments compared to a classical ANOVA comparison: 
+file_names corresponds to the names of the salmon quant outputs.
+
+trinity1 is a table containing the corresponding gene trinity ID (e.g. TRINITY_DN18_c1_g1) for each trinity isoform ID (e.g. TRINITY_DN18_c1_g1_i9). 
+
+## 6 - DESeq2 (DESeq2.rmd)
+
+To determine whether genes are differentially expressed between the two conditions (IFN+ and IFN-), we use the R package called DESeq2.
+
+### 6.1 - Description of DESeq2
+
+ Basically, DESeq2 performs classic statistical tests to determine if individual genes are expressed at different levels in the two conditions. It makes two adjustments compared to a classical ANOVA comparison: 
+ 
 1. the dispersion of individual gene expression counts in adjusted. For each gene in each condition, we have very few replicates (3 in our case). Therefore, it is impossible to know, on only one gene, whether the dispersion we observe is representative of real conditions or not. To have a better estimation of the dispersion, DESeq2 therefore adjusts a curve of the dispersion as a function of the gene count number and corrects the measured dispersion for each gene to better fit to that curve. This way, it takes into account the individual dispersion of all genes to correct individual dispersion values that are too far from what would be expected at a given gene count number. However, for individual genes with a dispersion much higher than expected, DESeq2 doesn't correct the dispersion value so as to not create false positives (lowering the dispersion will mean that the gene is considered to be expressed in a more stable way than it actually is, and, if we then spot a difference between conditions, we will consider it significant when we wouldn't have if we had kept the original dispersion). 
+
 2. Since we compute many independent differential expression tests (one for each gene), we need to adjust the p-value: it is considered uniformly distributed between 0 and 1, so if for instance we compute 10000 tests, we expect 500 false positives with a p-value < 0.05 when the genes aren't actually differentially expressed between our two conditions. DESeq2 therefore adjusts the p-value to take these expected false positives into account. 
+
+### 6.2 - Importing the tximport file
+
+We use:
+
+```{r}
+ddsTxi <- DESeqDataSetFromTximport(tximport_file,
+                                   colData = samples,
+                                   design = ~ condition)
+```
+
+samples is a dataframe indicating the condition for each library (either CTL or IFN). The design parameter is used to indicate to DESeq2 that we want to study differential expression by condition. 
+
+### 6.3 - Running DESeq2
+
+The following commands run DESeq2 on our data, and then store the results in a specific object:
+
+```{r}
+dds <- DESeq(ddsTxi)
+res <- results(dds)
+```
+
+The output looks like this: 
+
+![DESeq2 output](images/DESeq2_output.png)
+
+
+### 6.4 - Merging results with blastn alignment
+
+As shown in the output, the DESeq2 results table references genes by their Trinity ID, which is not very helpful for us. To be able to interpret results, we merge this table with the blastn results (which identify human homologs for our genes). The code was kindly provided by Marie Sémon so we wouldn't spend too much time on it. 
+
+### 6.5 - Quality control
+
+Once DESeq2 has been run, we can check the results with several tools. The first one is called an MA-plot, and displays the log fold change as a function of the mean of normalized counts for each gene:
+
+![MA-plot](images/MA_plot.png)
+
+We can see that we have a very high density of points (i.e. genes), which is directly linked to the (way too) high number of genes detected by trinity: since there is no reference map for the genome of Myotis velifer, the noise in the results leads to the identification of way more genes then there really are in the genome, resulting in this very dense MA plot. 
+
+The blue points represent genes that are considered significantly up- or downregulated after running DESeq2. We can already see that we have more upregulated than downregulated genes. 
+
+
+Another tool we can use to control the quality of the data is a Principal Components Analysis (PCA) to check whether the CTL and the IFN libraries respectively segregate together (as they should: if the experiment worked, the three CTL libraries should resemble one another and be different from the INF libraries, and conversely). 
+
+![PCA](images/PCA.png)
+
+We can see that, while the IFN libraries do resemble one another very much (they almost map in the same exact spot) and are removed from the CTL libraries, there is a problem within the three CTL libraries: libraries 1 and 2 almost map at the same spot (and are thus almost identical), but library 3 is distant, when it should be very close to the two others (it is, after all, supposed to be the same exact experiment). 
+
+An explanation for this can be found in the report on the library creation: all libraries should have been generated on the same day, but there was a problem in the generation of Library 3, which had to be generated again a few days later. Hence, what we observe is probably a batch effect linked to small variations in experimental conditions (temperature, experimenter...) which led to differences between the different CTL libraries. 
+
+These results raise the question of whether we should keep library 3: since we only have 3 replicates for each condition (which is already a very low number), removing one would imply a very weak statistical power for results interpretation. Furthermore, when testing the next steps with and without Library 3, we observed that the results did not change much from one analysis to the other. We therefore decided to keep Library 3. 
+
+
+## 7 - Results
+
+### 7.1 - Number of regulated genes
+
+![Results overview](images/results_overview.png)
+
+### 7.2 - Heatmap of upregulated genes
+
+![Heatmap](images/heatmap.png)
+
+### 7.3 - Gene Ontology
+
+![Gene Ontology](images/gene_ontology.png)
+
+### 7.4 - Comparison with another study
+
+![Holzer overview](images/holzer_overview.png)
