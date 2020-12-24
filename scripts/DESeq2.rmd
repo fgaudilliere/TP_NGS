@@ -9,12 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# First analysis
+# First analysis: all libraries
 
+## Adapting the salmon output to DESeq2
+
+Loading tximport:
 ```{r}
 library("tximport")
 ```
 
+
+Creating a vector with the paths to the different salmon ouputs (forward and reverse in my case because I ran salmon in single-end, so I have separated files for the forward and reverse reads of each library) and naming the columns of the vector I created:
 ```{r}
 data = "/ifb/data/mydatalocal/data_tp_ngs"
 file_names = c()
@@ -22,27 +27,29 @@ for (i in c(1,2,3,4,5,6)) {
   file_names = c(file_names,paste0(data,"/","salmon_alignment_single_end",i,"_forward","/","quant.sf"))
   file_names = c(file_names,paste0(data,"/","salmon_alignment_single_end",i,"_reverse","/","quant.sf"))
 }
+names(file_names) <- c("Lib1_forward","Lib1_reverse","Lib2_forward","Lib2_reverse","Lib3_forward","Lib3_reverse","Lib4_forward","Lib4_reverse","Lib5_forward","Lib5_reverse","Lib6_forward","Lib6_reverse")
 ```
 
 
+Retrieving the trinity file containing the correspondence between trinity gene ID and trinity isoform ID ("trinity"), naming the columns and and inverting the order of the columns ("trinity1"):
 ```{r}
-names(file_names) <- c("Lib1_forward","Lib1_reverse","Lib2_forward","Lib2_reverse","Lib3_forward","Lib3_reverse","Lib4_forward","Lib4_reverse","Lib5_forward","Lib5_reverse","Lib6_forward","Lib6_reverse")
 trinity <- read.table("/ifb/data/mydatalocal/data_tp_ngs/trinity_results/Trinity_RF.fasta.gene_trans_map")
 names(trinity) <- c("GENEID","TXNAME")
 trinity1 <- trinity[,c(2,1)]
 ```
 
 
+Creating a table containing the NumReads value, pooled by gene:
 ```{r}
 tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity1)
 ```
 
+Loading the DESeq2 library:
 ```{r}
 library("DESeq2")
 ```
 
 Preparing the import by generating a table indicating, for each library, what the condition is (CTL or INF):
-
 ```{r}
 samp.name <- names(file_names)
 samp.type <- c("CTL","CTL","CTL","CTL","CTL","CTL","INF","INF","INF","INF","INF","INF")
@@ -51,7 +58,6 @@ samples <- data.frame(run=samp.name,condition=samp.type)
 
 
 Importing the data from the tximport file into a file adapted to DESeq2:
-
 ```{r}
 ddsTxi <- DESeqDataSetFromTximport(tximport_file,
                                    colData = samples,
@@ -60,29 +66,29 @@ ddsTxi <- DESeqDataSetFromTximport(tximport_file,
 
 
 Running DESeq2: 
-
 ```{r}
 dds <- DESeq(ddsTxi)
 res <- results(dds)
 res
 ```
 
+Looking at how many genes display a p-value < 0.05 or 0.01: 
 ```{r}
 table(res$padj < 0.05)
 table(res$padj < 0.01)
 ```
 
 
+Plotting a MA-plot for quality control: 
 ```{r}
 plotMA(res, ylim=c(-2,2))
 ```
 
-Adapting data format for PCA:
 ```{r}
 vsd <- vst(dds, blind=FALSE)
 ```
 
-Plotting the PCA:
+Plotting the PCA for quality control (either by condition or condition + library number):
 ```{r}
 plotPCA(vsd, intgroup=c("condition"))
 plotPCA(vsd, intgroup=c("condition", "run"))
@@ -91,7 +97,7 @@ plotPCA(vsd, intgroup=c("condition", "run"))
 
 # Re-analysis without Library 3
 
-
+Creating a vector with the paths to the different salmon ouputs and naming the columns of the vector I created:
 ```{r}
 data = "/ifb/data/mydatalocal/data_tp_ngs"
 file_names2 = c()
@@ -99,24 +105,22 @@ for (i in c(1,2,4,5,6)) {
   file_names2 = c(file_names2,paste0(data,"/","salmon_alignment_single_end",i,"_forward","/","quant.sf"))
   file_names2 = c(file_names2,paste0(data,"/","salmon_alignment_single_end",i,"_reverse","/","quant.sf"))
 }
-```
-
-
-```{r}
 names(file_names2) <- c("Lib1_forward","Lib1_reverse","Lib2_forward","Lib2_reverse","Lib4_forward","Lib4_reverse","Lib5_forward","Lib5_reverse","Lib6_forward","Lib6_reverse")
-
 ```
 
+Creating a table containing the NumReads value, pooled by gene:
 ```{r}
-tximport_file <- tximport(files = file_names, type = "salmon", tx2gene = trinity1)
+tximport_file2 <- tximport(files = file_names2, type = "salmon", tx2gene = trinity1)
 ```
 
+Preparing the import by generating a table indicating, for each library, what the condition is (CTL or INF):
 ```{r}
 samp.name2 <- names(file_names2)
 samp.type2 <- c("CTL","CTL","CTL","CTL","INF","INF","INF","INF","INF","INF")
 samples2 <- data.frame(run=samp.name2,condition=samp.type2)
 ```
 
+Importing the data from the tximport file into a file adapted to DESeq2:
 ```{r}
 ddsTxi2 <- DESeqDataSetFromTximport(tximport_file2,
                                    colData = samples2,
@@ -124,27 +128,30 @@ ddsTxi2 <- DESeqDataSetFromTximport(tximport_file2,
 ```
 
 
-
+Running DESeq2: 
 ```{r}
 dds2 <- DESeq(ddsTxi2)
 res2 <- results(dds2)
 res2
 ```
 
+Looking at how many genes display a p-value < 0.05 or 0.01:
 ```{r}
 table(res2$padj < 0.05)
 table(res2$padj < 0.01)
 ```
 
-
+Plotting a MA-plot for quality control: 
 ```{r}
 plotMA(res2, ylim=c(-2,2))
 ```
+
 
 ```{r}
 vsd2 <- vst(dds2, blind=FALSE)
 ```
 
+Plotting the PCA for quality control (either by condition or condition + library number):
 ```{r}
 plotPCA(vsd2, intgroup=c("condition"))
 plotPCA(vsd2, intgroup=c("condition", "run"))
@@ -154,13 +161,14 @@ plotPCA(vsd2, intgroup=c("condition", "run"))
 
 
 
-# Lecture de la sortie de Blast
+# Merging DESeq2 output with blastn results
 
+Loading blastn output:
 ```{r}
 blast <- read.table(paste0(data,"/blast_alignment/blast_alignment_output"))
 ```
 
-
+Loading necessary libraries: 
 ```{r}
 library(dplyr)
 library(tidyr)
@@ -170,9 +178,7 @@ library(biomaRt)
 ```
 
 
-
-Faire la correspondance entre les numéros de gènes qu'on a dans le blast (numéros de gènes Trinity) et les noms réels (en utilisant comme intermédiaire les numéros de gènes ensembl): on produit une table bilan. 
-
+Creating a DESeq2 results dataframe that includes the Ensembl gene IDs and the gene names instead of only the Trinity gene IDs:
 ```{r}
 # match gene/transcript names
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
@@ -190,27 +196,28 @@ blastHomoNameUniq<-unique(blastHomoName[,c("ensembl_gene_id","external_gene_name
 resUsName=merge(as.data.frame(res2),blastHomoNameUniq,by.x=0,by.y="gene")
 ```
 
+Creating sub-tables containing the upregulated genes, the downregulated genes and both up- and downregulated genes:
 ```{r}
 UpReg <- filter(resUsName, padj<0.05 & resUsName$log2FoldChange>0)
 DownReg <- filter(resUsName, padj<0.05 & resUsName$log2FoldChange<0)
 AllReg <- filter(resUsName, padj<0.05)
 ```
 
-Comparaison avec un autre papier : 
 
-
+Loading data from Holzer et al. for comparison:
 ```{r}
 resBatHolzer<-read.csv("https://www.rna.uni-jena.de/supplements/mda/data/deseq2/RNA/Mock_6h_RNA_vs_IFN_6h_RNA/deseq2_Mock_6h_RNA_IFN_6h_RNA_full.csv")
 ```
 
 
+Merging our results and the Holzer results by gene names:
 ```{r}
-names(resUsName)[9] <- 'gene_name'
+names(resUsName)[9] <- 'gene_name' #renaming a column so that the "gene name" column has the same name in both tables
 CommonGenesUsHolze <- merge(resUsName,resBatHolzer,by="gene_name") 
 ```
 
-Préparation de listes pour Gorilla:
 
+Preparing lists of genes in csv format to use in Gorilla:
 ```{r}
 all_genes_list <- resUsName$gene_name
 up_reg_list <- UpReg$gene_name
@@ -233,8 +240,7 @@ write.csv(as.data.frame(unique(all_reg)),
 
 
 
-Heatmap: 
-
+Testing a heatmap (10 first genes):
 ```{r}
 select <- na.omit(resUsName$Row.names[resUsName$padj<0.05 & resUsName$log2FoldChange>0])
 select <-select[1:10]
@@ -248,33 +254,21 @@ pheatmap(assay(vsd2)[select,], cluster_rows=TRUE, show_rownames=TRUE,show_colnam
 ```
 
 
-```{r}
-resUsNameVsd <- merge(resUsName,assay(vsd2),by.x="Row.names",by.y=0)
-row.names(resUsNameVsd) <- resUsNameVsd$Row.names
-cibles <- c("ACTG1","ADAMTSL4")
-pheatmap(resUsNameVsd[resUsNameVsd$gene_name%in%cibles,10:15], cluster_rows=TRUE, show_rownames=TRUE,show_colnames=FALSE,
-         cluster_cols=FALSE, annotation_col=samples2)
-```
-
-
-Plus de gènes en commun entre eux et nous qu'attendu ? 
-
-```{r}
-chisq.test(table(us=CommonGenesUsHolze$padj.x<0.05,them=CommonGenesUsHolze$padj.y < 0.05))
-```
-
+Creating a column in the merged table to hold the result of the DESeq2 analysis in our experiment (either non-regulated, upregulated or downregulated):
 ```{r}
 CommonGenesUsHolze$ourTest="nonreg"
 CommonGenesUsHolze$ourTest[CommonGenesUsHolze$padj.x<0.05&CommonGenesUsHolze$log2FoldChange.x>0]="Up"
 CommonGenesUsHolze$ourTest[CommonGenesUsHolze$padj.x<0.05&CommonGenesUsHolze$log2FoldChange.x<0]="Down"
 ```
 
+Creating a column in the merged table to hold the result of the DESeq2 analysis in the Holzer experiment:
 ```{r}
 CommonGenesUsHolze$theirTest="nonreg"
 CommonGenesUsHolze$theirTest[CommonGenesUsHolze$padj.y<0.05&CommonGenesUsHolze$log2FoldChange.y>0]="Up"
 CommonGenesUsHolze$theirTest[CommonGenesUsHolze$padj.y<0.05&CommonGenesUsHolze$log2FoldChange.y<0]="Down"
 ```
 
+Testing whether the overlap between the two experiments in each category is higher than expected by chance:
 ```{r}
 chisq.test(table(us=CommonGenesUsHolze$ourTest,them=CommonGenesUsHolze$theirTest))
 ```

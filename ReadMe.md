@@ -5,15 +5,13 @@ output:
 ---
 # NGS Practicals
 
-This is the description of the workflow and code used in my NGS practicals in November 2020.
+This is the description of the workflow and code used in my NGS practicals in November 2020. These practicals aimed at studying the interferon response in the bat species Myotis velifer.
 
 ## Introduction
 
-This practical aimed at studying the interferon response in the bat species Myotis velifer. 
-
 Bats have been observed to be frequently infected by various viruses, but seem to be asymptotic in most cases. This raises the question of how bats have adapted to this longterm association with viruses, and a possible hypothesis is that they have evolved a balance between the intensity of the immune response (which has to be strong enough to ensure that the bat's organism is not affected too much by the consequences of a viral infection) and viral tolerance (to avoid living in a state of permanent inflammatory response).
 
-One important aspect of the immune response upon infection by a virus is the interferon response: when viral particles are detected by immune cells, they produce particles called interferons, which in turn activate specific genes called Interferon Stimulated Genes (ISG) that target various stages in the viral replication cycle. 
+One important aspect of the immune response upon infection by a virus is the interferon response: when viral particles are detected by immune cells, they produce particles called interferons, which in turn activate specific genes called Interferon Stimulated Genes (ISGs) that target various stages of the viral replication cycle. 
 
 This practical aims at studying ISGs in the bat Myotis velifer: to do this, we will analyze RNA-seq data obtained by sequencing the transcriptome of fibroblasts incubated either with (IFN+) or without (IFN-) interferons, to try and determine what genes are upregulated or downregulated in the IFN+ condition. We will then compare the regulated genes to known ISGs of other mammal species.
 
@@ -366,14 +364,31 @@ These results raise the question of whether we should keep library 3: since we o
 
 ![Results overview](images/results_overview.png)
 
+As observed in the MA-plot, we have much more genes upregulated than downregulated (which is not that surprising given that the interferon response tends to activate genes that will block the viral cycle rather than repress genes). 
+
 ### 7.2 - Heatmap of upregulated genes
+
+Below is a heatmap of upregulated genes for which the log fold change is superior to 4:
 
 ![Heatmap](images/heatmap.png)
 
 ### 7.3 - Gene Ontology
 
+To study the genes that are upregulated a bit more broadly, we can perform a gene ontology using Gorilla (this is the easiest gene ontology program to use, but we could have gone for more elaborated ones): the idea is to detect whether the regulated genes participate in certain biological functions more than one would expect by chance (for instance, if 15% of genes in the genome participate to function X, but 60% of the regulated genes participate in that function, we have an enrichment in function X among the regulated genes). 
+
 ![Gene Ontology](images/gene_ontology.png)
+
+The results are consistent with what one would expect in the context of our experiment: the enriched functions are immune functions (response to viruses, interferon response...). 
 
 ### 7.4 - Comparison with another study
 
+Finally, we can compare our results with a study by Holzer et al., who performed a similar experiment in another species of microbats. As shown on the image below, they also had much more upregulated than downregulated genes. 
+
 ![Holzer overview](images/holzer_overview.png)
+
+Furthermore, a chi-test allowed us to check that we have more regulated genes in common with Holzer than we would expect by chance. Among these genes, there are typical ISGs such as samd9, ubp18, ifi44 or ifih1. 
+
+
+## 8 - Acknowledgments
+
+I would like to thank Marie Sémon, Marie Cariou, Corentin Dechaud and Romain Bulteau for the organization of these practicals, for their explanations and for their patient help. 

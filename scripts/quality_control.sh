@@ -1,11 +1,13 @@
 data=/ifb/data/mydatalocal/data_tp_ngs/
 # data variable: path to file containing all data needed for the practical
 
-data_fastq=$data/fastq_sequences/Lib*.fastq.gz
-# data_fastq: list of the fastq files names
 
-mkdir $data/fastqc_results
+# data_fastq: list of the fastq files names
+data_fastq=$data/fastq_sequences/Lib*.fastq.gz
+
 # Creating a directory to put the fastqc results
+mkdir $data/fastqc_results
+
 
 
 # Following lines: loop to assess the quality of the data using fastqc
@@ -24,10 +26,11 @@ done
 # Headcrop: cropping the beginning of reads by a given number of bases
 # Minlen: discarding reads below a given size
 
-
-mkdir $data/trimmomatic_outputs
 # Creating a directory to store the trimmomatic outputs
+mkdir $data/trimmomatic_outputs
 
+
+# running trimmomatic
 for number in 1 2 3 4 5 6
 do
 java -jar /softwares/Trimmomatic-0.39/trimmomatic-0.39.jar PE -threads 8 \
@@ -42,10 +45,12 @@ done
 
 
 # Now that we have trimmed the reads, we look at their quality again
+
+# Creating a directory to store the fastqc results
 data_trimmomatic=$data/trimmomatic_outputs/*.gz
 mkdir $data/fastqc_trimmomatic
-# Creating a directory to store the fastqc results
 
+# running fastqc on the trimmomatic outputs:
 for sequence_file in $data_trimmomatic
 do
 fastqc -t 4 $sequence_file -o $data/fastqc_trimmomatic
